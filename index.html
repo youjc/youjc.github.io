@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水平擋土支撐設計器</title>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f4f7f6;
+        }
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 800px;
+        }
+        h1 { text-align: center; color: var(--primary-color); border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; }
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 600px) { .input-group { grid-template-columns: 1fr; } }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            border-left: 5px solid var(--accent-color);
+            background: #eef7fd;
+            display: none;
+        }
+        .math-block { margin: 15px 0; overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>水平支撐強度檢核</h1>
+    
+    <div class="input-group">
+        <div>
+            <label>選擇 H 型鋼規格</label>
+            <select id="hType">
+                <option value="H200">H200 x 200 x 8 x 12</option>
+                <option value="H250">H250 x 250 x 9 x 14</option>
+                <option value="H300" selected>H300 x 300 x 10 x 15</option>
+                <option value="H350">H350 x 350 x 12 x 19</option>
+                <option value="H400">H400 x 400 x 13 x 21</option>
+            </select>
+        </div>
+        <div>
+            <label>支撐水平間距 $S_h$ (m)</label>
+            <input type="number" id="spacing" value="5.0" step="0.1">
+        </div>
+        <div>
+            <label>側向土壓力 $w_a$ (t/m²)</label>
+            <input type="number" id="pressure" value="12.5" step="0.5">
+        </div>
+        <div>
+            <label>支撐有效跨距 $L$ (m)</label>
+            <input type="number" id="length" value="6.0" step="0.1">
+        </div>
+    </div>
+
+    <button onclick="calculate()">執行工程檢核</button>
+
+    <div id="result">
+        </div>
+</div>
+
+<script>
+    const hData = {
+        "H200": { A: 63.5, Ix: 4720, Zx: 472, ry: 5.02 },
+        "H250": { A: 92.2, Ix: 10800, Zx: 867, ry: 6.29 },
+        "H300": { A: 119.8, Ix: 20400, Zx: 1360, ry: 7.51 },
+        "H350": { A: 173.9, Ix: 40300, Zx: 2300, ry: 8.84 },
+        "H400": { A: 218.7, Ix: 66600, Zx: 3330, ry: 10.1 }
+    };
+
+    function calculate() {
+        const type = document.getElementById('hType').value;
+        const Sh = parseFloat(document.getElementById('spacing').value);
+        const wa = parseFloat(document.getElementById('pressure').value);
+        const L = parseFloat(document.getElementById('length').value);
+        const data = hData[type];
+
+        // 1. 計算軸力 P (t)
+        const P = wa * Sh; 
+        
+        // 2. 計算斷面應力 fa (kg/cm2) -> 1t = 1000kg
+        const fa = (P * 1000) / data.A;
+
+        // 3. 長細比檢核 (簡化參考值)
+        const kl_r = (L * 100) / data.ry;
+        
+        // 4. 生成 HTML 內容
+        let html = `<h3>檢核結果：${type}</h3>`;
+        html += `<div class="math-block">1. 計算作用軸力 $P$:<br> 
+                 $P = w_a \\times S_h = ${wa} \\times ${Sh} = ${P.toFixed(2)} \\text{ t}$</div>`;
+        
+        html += `<div class="math-block">2. 計算實際壓應力 $f_a$:<br>
+                 $f_a = \\frac{P \\times 1000}{A} = \\frac{${P.toFixed(2)} \\times 1000}{${data.A}} = ${fa.toFixed(2)} \\text{ kg/cm}^2$</div>`;
+        
+        html += `<div class="math-block">3. 計算長細比 $\\lambda$:<br>
+                 $\\lambda = \\frac{L \\times 100}{r_y} = \\frac{${L} \\times 100}{${data.ry}} = ${kl_r.toFixed(2)}$</div>`;
+
+        const statusColor = fa < 1200 ? "green" : "red";
+        const statusText = fa < 1200 ? "安全 (Safe)" : "不安全 (Unsafe)";
+
+        html += `<p style="font-weight:bold; color:${statusColor}">結論：$f_a$ 檢核為 ${statusText} (容許值參考為 $1200 \\text{ kg/cm}^2$)</p>`;
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = html;
+
+        // 重啟 MathJax 渲染動態生成的內容
+        MathJax.typesetPromise();
+    }
+</script>
+
+</body>
+</html>
